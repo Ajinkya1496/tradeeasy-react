@@ -1,6 +1,8 @@
 import React, { Component } from 'react';
 import { Form, Input, Button, Card, Row, Col } from 'antd';
+import { navigate } from '@reach/router';
 import './Login.css';
+import AuthService from '../../services/authService';
 
 const layout = {
     labelCol: {
@@ -18,14 +20,33 @@ const layout = {
   };
 
 export default class Login extends Component {
+    authService = new AuthService();
+    state = {
+        invalidUser: '',
+        loginDisabled: false,
+    }
     onFinish = values => {
-      console.log('Success:', values);
+        this.setState({loginDisabled: true});
+        this.authService.post(`http://localhost:3000/users/login`, values)
+        .then(response => {
+            if(response.statusCode === 401) {
+                this.setState({invalidUser: 'Invalid username or password'});
+                this.setState({loginDisabled: false});
+            }
+            else {
+                this.authService.setToken(response.accessToken);
+                navigate('dashboard');
+            }
+        })
     };
-  
     onFinishFailed = errorInfo => {
       console.log('Failed:', errorInfo);
     };
     render() {
+        if (this.authService.getToken()) {
+            window.location = "/dashboard";
+            return;
+        }
         return (
             <>
             <Row className="height stocks-image" align="middle">
@@ -42,8 +63,8 @@ export default class Login extends Component {
                         onFinishFailed={this.onFinishFailed}
                         >
                         <Form.Item
-                            label="Username"
-                            name="username"
+                            label="Email"
+                            name="email"
                             rules={[
                             {
                                 required: true,
@@ -72,10 +93,18 @@ export default class Login extends Component {
                         </Form.Item>
                     
                         <Form.Item {...tailLayout}>
-                            <Button type="primary" htmlType="submit">
+                            <Button type="primary" htmlType="submit" disabled={this.state.loginDisabled}>
                                 Login
                             </Button>
                         </Form.Item>
+                        {
+                        this.state.invalidUser?
+                        <Form.Item {...tailLayout}>
+                            <span className="error-message">
+                                {this.state.invalidUser}
+                            </span>
+                        </Form.Item> : ''
+                        }
                         <Form.Item {...tailLayout}>
                             Not a user? <a href="/temp">Register</a>
                         </Form.Item>
